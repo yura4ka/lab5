@@ -1,7 +1,13 @@
 int main() {
   float a = 3.3;
-  printf("a = %f\n", a);
-  int b = 2;
-  func(b, 5);
+  if (a == 0) {
+    prinf("a");
+  } else if (a == 1) {
+    printf("B");
+  } else if (a) {
+    printf("C");
+  } else {
+    printf("D");
+  }
   return 0;
 }

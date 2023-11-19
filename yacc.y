@@ -196,8 +196,8 @@ constant_expression:
 /* DECLARATIONS */
 
 declaration: 
-        declaration_specifiers init_declarator_list ';'
-        declaration_specifiers ';'
+          declaration_specifiers ';'
+        | declaration_specifiers init_declarator_list ';'
         ;
 
 declaration_specifiers:
@@ -484,11 +484,9 @@ external_declaration:
 
 function_definition: 
           declaration_specifiers declarator declaration_list compound_statement 
-        | declaration_specifiers declarator compound_statement 
         ;
 
 declaration_list:
-          declaration
         | declaration_list declaration
         ;
 
