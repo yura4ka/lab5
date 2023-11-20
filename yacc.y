@@ -5,92 +5,110 @@
 void yyerror(char *s);
 int yydebug = 1;
 int success = 1;
+
+Node* head;
 %}
 
-%token IFDEF IFNDEF ELIF ENDIF INCLUDE DEFINE UNDEF LINE ERROR PRAGMA
-%token HSEQ NEW_LINE
+%union {
+    Node *node;
+};
 
-%token AUTO REGISTER STATIC EXTERN TYPEDEF
-%token TYPE_SPECIFIER TYPE_QUALIFIER STRUCT_OR_UNION
-%token IDENTIFIER
-%token INT_CONST CHAR_CONST FLOAT_CONST STRING
+%token <node> AUTO REGISTER STATIC EXTERN TYPEDEF
+%token <node> TYPE_SPECIFIER TYPE_QUALIFIER STRUCT_OR_UNION
+%token <node> IDENTIFIER
+%token <node> INT_CONST CHAR_CONST FLOAT_CONST STRING
 
-%token RETURN IF ELSE WHILE FOR SWITCH CASE DEFAULT BREAK CONTINUE GOTO ENUM DO INLINE
-%token ELLIPSIS
+%token <node> RETURN IF ELSE WHILE FOR SWITCH CASE DEFAULT BREAK CONTINUE GOTO ENUM DO INLINE
+%token <node> ELLIPSIS
+%token <node> '[' ']' '(' ')' '{' '}' '#' ';'
 
-%left ','
-%right AND_EQ OR_EQ XOR_EQ
-%right LEFT_EQ RIGHT_EQ
-%right MULT_EQ DIV_EQ MOD_EQ
-%right ADD_EQ SUB_EQ
-%right '='
-%right '?' ':'
-%left OR_OP
-%left AND_OP
-%left '|'
-%left '^'
-%left '&'
-%left EQ_OP NE_OP
-%left '<' '>' LE_OP GE_OP
-%left LEFT_SHIFT RIGHT_SHIFT
-%left '+' '-'
-%left '*' '/' '%'
-%right SIZEOF
-%right '!' '~'
-%right INC_OP DEC_OP
-%left ARROW
-%left '.'
+%left <node> ','
+%right <node> AND_EQ OR_EQ XOR_EQ
+%right <node> LEFT_EQ RIGHT_EQ
+%right <node> MULT_EQ DIV_EQ MOD_EQ
+%right <node> ADD_EQ SUB_EQ
+%right <node> '='
+%right <node> '?' ':'
+%left <node> OR_OP
+%left <node> AND_OP
+%left <node> '|'
+%left <node> '^'
+%left <node> '&'
+%left <node> EQ_OP NE_OP
+%left <node> '<' '>' LE_OP GE_OP
+%left <node> LEFT_SHIFT RIGHT_SHIFT
+%left <node> '+' '-'
+%left <node> '*' '/' '%'
+%right <node> SIZEOF
+%right <node> '!' '~'
+%right <node> INC_OP DEC_OP
+%left <node> ARROW
+%left <node> '.'
+
+%type <node> program constant enum_const primary_expression postfix_expression argument_expression_list 
+%type <node> unary_expression unary_operator cast_expression multiplicative_expression additive_expression 
+%type <node> shift_expression relational_expression equality_expression and_expression exclusive_or_expression 
+%type <node> inclusive_or_expression logical_and_expression logical_or_expression conditional_expression
+%type <node> assignment_expression assigment_operator expression constant_expression
+%type <node> declaration declaration_specifiers init_declarator_list init_declarator storage_class_specifier
+%type <node> type_specifier struct_or_union_specifier struct_declaration_list struct_declaration specifier_qualifier_list
+%type <node> struct_declarator_list struct_declarator enum_specifier enumerator_list enumerator function_specifier declarator
+%type <node> direct_declarator pointer type_qualifier_list parameter_type_list parameter_list parameter_declaration
+%type <node> identifier_list type_name abstract_declarator direct_abstract_declarator typedef_name initializer initializer_list
+%type <node> designation designator_list designator statement labeled_statement compound_statement block_item_list block_item
+%type <node> expression_statement selection_statement iteration_statement jump_statement translation_unit external_declaration
+%type <node> function_definition declaration_list
 
 %%
 program: 
-        preprocessing translation_unit 
+        translation_unit                        { $$ = newNode("program", 1, $1); head = $$; }
         ;
 
 constant: 
-          INT_CONST
-        | CHAR_CONST
-        | FLOAT_CONST
-        | enum_const
+          INT_CONST                             { $$ = newNode("constant", 1, $1); }
+        | CHAR_CONST                            { $$ = newNode("constant", 1, $1); }
+        | FLOAT_CONST                           { $$ = newNode("constant", 1, $1); }
+        | enum_const                            { $$ = newNode("constant", 1, $1); }
         ;
 
 enum_const: 
-        IDENTIFIER
+        IDENTIFIER                              { $$ = newNode("enumeration-constant", 1, $1); }
         ;
 
 /* EXPRESSIONS */
 
 primary_expression: 
-          IDENTIFIER
-        | constant
-        | STRING
-        | '(' expression ')'
+          IDENTIFIER                            { $$ = newNode("primary-expression", 1, $1); }
+        | constant                              { $$ = newNode("primary-expression", 1, $1); }
+        | STRING                                { $$ = newNode("primary-expression", 1, $1); }
+        | '(' expression ')'                    { $$ = newNode("primary-expression", 3, $1, $2, $3); }
         ;
 
 postfix_expression: 
-          primary_expression
-        | postfix_expression '[' expression ']'
-        | postfix_expression '(' argument_expression_list ')'
-        | postfix_expression '(' ')'
-        | postfix_expression '.' IDENTIFIER
-        | postfix_expression ARROW IDENTIFIER
-        | postfix_expression INC_OP
-        | postfix_expression DEC_OP
-        | '(' type_name ')' '{' initializer_list '}'
-        | '(' type_name ')' '{' initializer_list ',' '}'
+          primary_expression                                    { $$ = newNode("postfix-expression", 1, $1); }
+        | postfix_expression '[' expression ']'                 { $$ = newNode("postfix-expression", 4, $1, $2, $3, $4); }
+        | postfix_expression '(' argument_expression_list ')'   { $$ = newNode("postfix-expression", 4, $1, $2, $3, $4); }
+        | postfix_expression '(' ')'                            { $$ = newNode("postfix-expression", 3, $1, $2, $3); }
+        | postfix_expression '.' IDENTIFIER                     { $$ = newNode("postfix-expression", 3, $1, $2, $3); }
+        | postfix_expression ARROW IDENTIFIER                   { $$ = newNode("postfix-expression", 3, $1, $2, $3); }
+        | postfix_expression INC_OP                             { $$ = newNode("postfix-expression", 2, $1, $2); }
+        | postfix_expression DEC_OP                             { $$ = newNode("postfix-expression", 2, $1, $2); }
+        | '(' type_name ')' '{' initializer_list '}'            { $$ = newNode("postfix-expression", 6, $1, $2, $3, $4, $5, $6); }
+        | '(' type_name ')' '{' initializer_list ',' '}'        { $$ = newNode("postfix-expression", 7, $1, $2, $3, $4, $5, $6, $7); }
         ;
 
 argument_expression_list:
-          assignment_expression
-        | argument_expression_list ',' assignment_expression
+          assignment_expression                                 { $$ = newNode("argument-expression-list", 1, $1); }
+        | argument_expression_list ',' assignment_expression    { $$ = newNode("argument-expression-list", 3, $1, $2, $3); }
         ;
 
 unary_expression: 
-          postfix_expression
-        | INC_OP unary_expression
-        | DEC_OP unary_expression
-        | unary_operator cast_expression
-        | SIZEOF unary_expression
-        | SIZEOF '(' type_name ')'
+          postfix_expression                    { $$ = newNode("unary-expression", 1, $1); }
+        | INC_OP unary_expression               { $$ = newNode("unary-expression", 2, $1, $2); }
+        | DEC_OP unary_expression               { $$ = newNode("unary-expression", 2, $1, $2); }
+        | unary_operator cast_expression        { $$ = newNode("unary-expression", 2, $1, $2); }
+        | SIZEOF unary_expression               { $$ = newNode("unary-expression", 2, $1, $2); }
+        | SIZEOF '(' type_name ')'              { $$ = newNode("unary-expression", 4, $1, $2, $3, $4); }
         ;
 
 unary_operator: 
@@ -98,76 +116,78 @@ unary_operator:
         ;
 
 cast_expression: 
-          unary_expression
-        | '(' type_name ')' cast_expression
+          unary_expression                      { $$ = newNode("case-expression", 1, $1); }
+        | '(' type_name ')' cast_expression     { $$ = newNode("case-expression", 4, $1, $2, $3, $4); }
         ;
 
 multiplicative_expression: 
-          cast_expression
-        | multiplicative_expression '*' cast_expression
-        | multiplicative_expression '/' cast_expression
-        | multiplicative_expression '%' cast_expression
+          cast_expression                                       { $$ = newNode("multiplicative-expression", 1, $1); }
+        | multiplicative_expression '*' cast_expression         { $$ = newNode("multiplicative-expression", 3, $1, $2, $3); }
+        | multiplicative_expression '/' cast_expression         { $$ = newNode("multiplicative-expression", 3, $1, $2, $3); }
+        | multiplicative_expression '%' cast_expression         { $$ = newNode("multiplicative-expression", 3, $1, $2, $3); }
         ;
 
 additive_expression: 
-          multiplicative_expression
-        | additive_expression '+' multiplicative_expression
-        | additive_expression '-' multiplicative_expression
+          multiplicative_expression                             { $$ = newNode("additive-expression", 1, $1); }
+        | additive_expression '+' multiplicative_expression     { $$ = newNode("additive-expression", 3, $1, $2, $3); }
+        | additive_expression '-' multiplicative_expression     { $$ = newNode("additive-expression", 3, $1, $2, $3); }
         ;
 
 shift_expression: 
-          additive_expression
-        | shift_expression LEFT_SHIFT additive_expression
-        | shift_expression RIGHT_SHIFT additive_expression
+          additive_expression                                   { $$ = newNode("shift-expression", 1, $1); }
+        | shift_expression LEFT_SHIFT additive_expression       { $$ = newNode("shift-expression", 3, $1, $2, $3); }
+        | shift_expression RIGHT_SHIFT additive_expression      { $$ = newNode("shift-expression", 3, $1, $2, $3); }
         ;
 
 relational_expression: 
-          shift_expression
-        | relational_expression '<' shift_expression
-        | relational_expression '>' shift_expression
-        | relational_expression LE_OP shift_expression
-        | relational_expression GE_OP shift_expression
+          shift_expression                                      { $$ = newNode("relational-expression", 1, $1); }
+        | relational_expression '<' shift_expression            { $$ = newNode("relational-expression", 3, $1, $2, $3); }
+        | relational_expression '>' shift_expression            { $$ = newNode("relational-expression", 3, $1, $2, $3); }
+        | relational_expression LE_OP shift_expression          { $$ = newNode("relational-expression", 3, $1, $2, $3); }
+        | relational_expression GE_OP shift_expression          { $$ = newNode("relational-expression", 3, $1, $2, $3); }
         ;
 
 equality_expression: 
-          relational_expression
-        | equality_expression EQ_OP relational_expression
-        | equality_expression NE_OP relational_expression
+          relational_expression                                 { $$ = newNode("equality-expression", 1, $1); }
+        | equality_expression EQ_OP relational_expression       { $$ = newNode("equality-expression", 3, $1, $2, $3); }
+        | equality_expression NE_OP relational_expression       { $$ = newNode("equality-expression", 3, $1, $2, $3); }
         ;
 
 and_expression: 
-          equality_expression
-        | and_expression '&' equality_expression
+          equality_expression                                   { $$ = newNode("and-expression", 1, $1); }
+        | and_expression '&' equality_expression                { $$ = newNode("and-expression", 3, $1, $2, $3); }
         ;
 
 exclusive_or_expression: 
-          and_expression
-        | exclusive_or_expression '^' and_expression
+          and_expression                                        { $$ = newNode("exclusive-or-expression", 1, $1); }
+        | exclusive_or_expression '^' and_expression            { $$ = newNode("exclusive-or-expression", 3, $1, $2, $3); }
         ;
 
 inclusive_or_expression: 
-          exclusive_or_expression
-        | inclusive_or_expression '|' exclusive_or_expression
+          exclusive_or_expression                               { $$ = newNode("inclusive-or-expression", 1, $1); }
+        | inclusive_or_expression '|' exclusive_or_expression   { $$ = newNode("inclusive-or-expression", 3, $1, $2, $3); }
         ;
 
 logical_and_expression: 
-          inclusive_or_expression
-        | logical_and_expression AND_OP inclusive_or_expression
+          inclusive_or_expression                               { $$ = newNode("logical-and-expression", 1, $1); }
+        | logical_and_expression AND_OP inclusive_or_expression { $$ = newNode("logical-and-expression", 3, $1, $2, $3); }
         ;
 
 logical_or_expression: 
-          logical_and_expression
-        | logical_or_expression OR_OP logical_and_expression
+          logical_and_expression                                { $$ = newNode("logical-or-expression", 1, $1); }
+        | logical_or_expression OR_OP logical_and_expression    { $$ = newNode("logical-or-expression", 3, $1, $2, $3); }
         ;
 
 conditional_expression: 
-          logical_or_expression
+          logical_or_expression                                 { $$ = newNode("conditional-expression", 1, $1); }
         | logical_or_expression '?' expression ':' conditional_expression
+                                                                { $$ = newNode("conditional-expression", 5, $1, $2, $3, $4, $5); }
         ;
 
 assignment_expression: 
-          conditional_expression
+          conditional_expression                                { $$ = newNode("assignment-expression", 1, $1); }
         | unary_expression assigment_operator assignment_expression
+                                                                { $$ = newNode("assignment-expression", 3, $1, $2, $3); }
         ;
 
 assigment_operator: 
@@ -185,412 +205,337 @@ assigment_operator:
         ;
 
 expression: 
-          assignment_expression
-        | expression ',' assignment_expression
+          assignment_expression                                 { $$ = newNode("expression", 1, $1); }
+        | expression ',' assignment_expression                  { $$ = newNode("expression", 3, $1, $2, $3); }
         ;
 
 constant_expression: 
-        conditional_expression
+        conditional_expression                                  { $$ = newNode("constant-expression", 1, $1); }
         ;
 
 /* DECLARATIONS */
 
 declaration: 
-          declaration_specifiers ';'
-        | declaration_specifiers init_declarator_list ';'
+          declaration_specifiers ';'                            { $$ = newNode("declaration", 2, $1, $2); }
+        | declaration_specifiers init_declarator_list ';'       { $$ = newNode("declaration", 3, $1, $2, $3); }
         ;
 
 declaration_specifiers:
-          storage_class_specifier
-        | type_specifier
-        | TYPE_QUALIFIER
-        | function_specifier
-        | declaration_specifiers storage_class_specifier
-        | declaration_specifiers type_specifier
-        | declaration_specifiers TYPE_QUALIFIER
-        | declaration_specifiers function_specifier
+          storage_class_specifier                               { $$ = newNode("declaration-specifiers", 1, $1); }
+        | type_specifier                                        { $$ = newNode("declaration-specifiers", 1, $1); }
+        | TYPE_QUALIFIER                                        { $$ = newNode("declaration-specifiers", 1, $1); }
+        | function_specifier                                    { $$ = newNode("declaration-specifiers", 1, $1); }
+        | declaration_specifiers storage_class_specifier        { $$ = newNode("declaration-specifiers", 2, $1, $2); }
+        | declaration_specifiers type_specifier                 { $$ = newNode("declaration-specifiers", 2, $1, $2); }
+        | declaration_specifiers TYPE_QUALIFIER                 { $$ = newNode("declaration-specifiers", 2, $1, $2); }
+        | declaration_specifiers function_specifier             { $$ = newNode("declaration-specifiers", 2, $1, $2); }
         ;
 
 init_declarator_list:
-          init_declarator
-        | init_declarator_list ',' init_declarator
+          init_declarator                                       { $$ = newNode("init-declarator-list", 1, $1); }
+        | init_declarator_list ',' init_declarator              { $$ = newNode("init-declarator-list", 3, $1, $2, $3); }
         ;
 
 init_declarator: 
-          declarator
-        | declarator '=' initializer
+          declarator                                            { $$ = newNode("init-declarator", 1, $1); }
+        | declarator '=' initializer                            { $$ = newNode("init-declarator", 3, $1, $2, $3); }
         ;
 
 storage_class_specifier:
-          AUTO
-        | REGISTER
-        | STATIC
-        | EXTERN
-        | TYPEDEF
+          AUTO                                                  { $$ = newNode("storage-class-specifier", 1, $1); }
+        | REGISTER                                              { $$ = newNode("storage-class-specifier", 1, $1); }
+        | STATIC                                                { $$ = newNode("storage-class-specifier", 1, $1); }
+        | EXTERN                                                { $$ = newNode("storage-class-specifier", 1, $1); }
+        | TYPEDEF                                               { $$ = newNode("storage-class-specifier", 1, $1); }
         ;
 
 type_specifier: 
-          TYPE_SPECIFIER 
-        | struct_or_union_specifier
-        | enum_specifier
-        | typedef_name
+          TYPE_SPECIFIER                                        { $$ = newNode("type-specifier", 1, $1); }
+        | struct_or_union_specifier                             { $$ = newNode("type-specifier", 1, $1); }
+        | enum_specifier                                        { $$ = newNode("type-specifier", 1, $1); }
+        | typedef_name                                          { $$ = newNode("type-specifier", 1, $1); }
         ;
 
 struct_or_union_specifier: 
-          STRUCT_OR_UNION '{' struct_declaration_list '}'
+          STRUCT_OR_UNION '{' struct_declaration_list '}'       { $$ = newNode("struct-or-union-specifier", 4, $1, $2, $3, $4); }
+        | STRUCT_OR_UNION IDENTIFIER                            { $$ = newNode("struct-or-union-specifier", 2, $1, $2); }
         | STRUCT_OR_UNION IDENTIFIER '{' struct_declaration_list '}'
-        | STRUCT_OR_UNION IDENTIFIER
+                                                                { $$ = newNode("struct-or-union-specifier", 5, $1, $2, $3, $4, $5); }
         ;
 
 struct_declaration_list: 
-          struct_declaration
-        | struct_declaration_list struct_declaration
+          struct_declaration                                    { $$ = newNode("struct-declaration-list", 1, $1); }
+        | struct_declaration_list struct_declaration            { $$ = newNode("struct-declaration-list", 2, $1, $2); }
         ;
 
 struct_declaration: 
-        specifier_qualifier_list struct_declarator_list ';'
+        specifier_qualifier_list struct_declarator_list ';'     { $$ = newNode("struct-declaration", 3, $1, $2, $3); }
         ;
 
 specifier_qualifier_list: 
-          type_specifier
-        | TYPE_QUALIFIER
-        | type_specifier specifier_qualifier_list
-        | TYPE_QUALIFIER specifier_qualifier_list
+          type_specifier                                        { $$ = newNode("specifier-qualifier-list", 1, $1); }
+        | TYPE_QUALIFIER                                        { $$ = newNode("specifier-qualifier-list", 1, $1); }
+        | type_specifier specifier_qualifier_list               { $$ = newNode("specifier-qualifier-list", 2, $1, $2); }
+        | TYPE_QUALIFIER specifier_qualifier_list               { $$ = newNode("specifier-qualifier-list", 2, $1, $2); }
         ;
 
 struct_declarator_list: 
-          struct_declarator
-        | struct_declarator_list ',' struct_declarator
+          struct_declarator                                     { $$ = newNode("struct-declarator-list", 3, $1); }
+        | struct_declarator_list ',' struct_declarator          { $$ = newNode("struct-declarator-list", 3, $1, $2, $3); }
         ;
 
 struct_declarator: 
-          declarator
-        | ':' constant_expression
-        | declarator ':' constant_expression
+          declarator                                            { $$ = newNode("struct-declarator", 1, $1); }
+        | ':' constant_expression                               { $$ = newNode("struct-declarator", 2, $1, $2); }
+        | declarator ':' constant_expression                    { $$ = newNode("struct-declarator", 3, $1, $2, $3); }
         ;
 
 enum_specifier: 
-        ENUM IDENTIFIER '{' enumerator_list '}'
-        | ENUM '{' enumerator_list '}'
-        | ENUM IDENTIFIER '{' enumerator_list ',' '}'
-        | ENUM '{' enumerator_list ',' '}'
-        | ENUM IDENTIFIER
+          ENUM IDENTIFIER '{' enumerator_list '}'               { $$ = newNode("enum-specifier", 5, $1, $2, $3, $4, $5); }
+        | ENUM '{' enumerator_list '}'                          { $$ = newNode("enum-specifier", 4, $1, $2, $3, $4); }
+        | ENUM IDENTIFIER '{' enumerator_list ',' '}'           { $$ = newNode("enum-specifier", 6, $1, $2, $3, $4, $5, $6); }
+        | ENUM '{' enumerator_list ',' '}'                      { $$ = newNode("enum-specifier", 5, $1, $2, $3, $4, $5); }
+        | ENUM IDENTIFIER                                       { $$ = newNode("enum-specifier", 2, $1, $2); }
         ;
 
 enumerator_list: 
-          enumerator
-        | enumerator_list ',' enumerator
+          enumerator                                            { $$ = newNode("enumerator-list", 1); }
+        | enumerator_list ',' enumerator                        { $$ = newNode("enumerator-list", 3, $1, $2, $3); }
         ;
 
 enumerator: 
-          enum_const
-        | enum_const '=' constant_expression
+          enum_const                                            { $$ = newNode("enumerator", 1, $1); }
+        | enum_const '=' constant_expression                    { $$ = newNode("enumerator", 3, $1, $2, $3); }
         ;
 
 function_specifier: 
-        INLINE 
+        INLINE                                                  { $$ = newNode("function-specifier", 1, $1); }
         ;
 
 declarator: 
-          pointer direct_declarator
-        | direct_declarator
+          pointer direct_declarator                             { $$ = newNode("declarator", 2, $1, $2); }              
+        | direct_declarator                                     { $$ = newNode("declarator", 1, $1); }
         ;
 
 direct_declarator: 
-          IDENTIFIER
-        | '(' declarator ')'
-        | direct_declarator '[' ']'
+          IDENTIFIER                                            { $$ = newNode("direct-declarator", 1, $1); } 
+        | '(' declarator ')'                                    { $$ = newNode("direct-declarator", 3, $1, $2, $3); } 
+        | direct_declarator '[' ']'                             { $$ = newNode("direct-declarator", 3, $1, $2, $3); }
         | direct_declarator '[' type_qualifier_list assignment_expression ']'
-        | direct_declarator '[' type_qualifier_list ']'
-        | direct_declarator '[' assignment_expression ']'
+                                                                { $$ = newNode("direct-declarator", 5, $1, $2, $3, $4, $5); }
+        | direct_declarator '[' type_qualifier_list ']'         { $$ = newNode("direct-declarator", 4, $1, $2, $3, $4); }
+        | direct_declarator '[' assignment_expression ']'       { $$ = newNode("direct-declarator", 4, $1, $2, $3, $4); }
         | direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'
+                                                                { $$ = newNode("direct-declarator", 6, $1, $2, $3, $4, $5, $6); }
         | direct_declarator '[' STATIC assignment_expression ']'
+                                                                { $$ = newNode("direct-declarator", 5, $1, $2, $3, $4, $5); }
         | direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'
+                                                                { $$ = newNode("direct-declarator", 6, $1, $2, $3, $4, $5, $6); }
         | direct_declarator '[' type_qualifier_list '*' ']'
-        | direct_declarator '[' '*' ']'
-        | direct_declarator '(' parameter_type_list ')'
-        | direct_declarator '(' identifier_list ')'
-        | direct_declarator '(' ')'
+                                                                { $$ = newNode("direct-declarator", 5, $1, $2, $3, $4, $5); }
+        | direct_declarator '[' '*' ']'                         { $$ = newNode("direct-declarator", 4, $1, $2, $3, $4); }
+        | direct_declarator '(' parameter_type_list ')'         { $$ = newNode("direct-declarator", 4, $1, $2, $3, $4); }
+        | direct_declarator '(' identifier_list ')'             { $$ = newNode("direct-declarator", 4, $1, $2, $3, $4); }
+        | direct_declarator '(' ')'                             { $$ = newNode("direct-declarator", 3, $1, $2, $3); }
         ;
 
 pointer: 
-          '*'
-        | '*' type_qualifier_list
-        | '*' pointer
-        | '*' type_qualifier_list pointer
+          '*'                                                   { $$ = newNode("pointer", 1, $1); }
+        | '*' type_qualifier_list                               { $$ = newNode("pointer", 2, $1, $2); }
+        | '*' pointer                                           { $$ = newNode("pointer", 1, $1); }
+        | '*' type_qualifier_list pointer                       { $$ = newNode("pointer", 3, $1, $2, $3); }
         ;
 
 type_qualifier_list: 
-          TYPE_QUALIFIER
-        | type_qualifier_list TYPE_QUALIFIER
+          TYPE_QUALIFIER                                        { $$ = newNode("type-qualifier-list", 1, $1); }
+        | type_qualifier_list TYPE_QUALIFIER                    { $$ = newNode("type-qualifier-list", 2, $1, $2); }
         ;
 
 parameter_type_list: 
-          parameter_list
-        | parameter_list ',' ELLIPSIS
+          parameter_list                                        { $$ = newNode("parameter-type-list", 1, $1); }
+        | parameter_list ',' ELLIPSIS                           { $$ = newNode("parameter-type-list", 3, $1, $2, $3); }
         ;
 
 parameter_list: 
-          parameter_declaration
-        | parameter_list ',' parameter_declaration
+          parameter_declaration                                 { $$ = newNode("parameter-list", 1, $1); }
+        | parameter_list ',' parameter_declaration              { $$ = newNode("parameter-list", 3, $1, $2, $3); }
         ;
 
 parameter_declaration: 
-          declaration_specifiers declarator
-        | declaration_specifiers abstract_declarator
-        | declaration_specifiers
+          declaration_specifiers declarator                     { $$ = newNode("parameter-declaration", 2, $1, $2); }
+        | declaration_specifiers abstract_declarator            { $$ = newNode("parameter-declaration", 2, $1, $2); }
+        | declaration_specifiers                                { $$ = newNode("parameter-declaration", 1, $1); }
         ;
 
 identifier_list: 
-          IDENTIFIER
-        | identifier_list ',' IDENTIFIER 
+          IDENTIFIER                                            { $$ = newNode("identifier-list", 1, $1); }
+        | identifier_list ',' IDENTIFIER                        { $$ = newNode("identifier-list", 3, $1, $2, $3); }
         ;
 
 type_name: 
-          specifier_qualifier_list
-        | specifier_qualifier_list abstract_declarator
+          specifier_qualifier_list                              { $$ = newNode("type-name", 1, $1); }
+        | specifier_qualifier_list abstract_declarator          { $$ = newNode("type-name", 2, $1, $2); }
         ;
 
 abstract_declarator: 
-          pointer
-        | pointer direct_abstract_declarator
-        | direct_abstract_declarator
+          pointer                                               { $$ = newNode("abstract-declarator", 1, $1); }
+        | pointer direct_abstract_declarator                    { $$ = newNode("abstract-declarator", 2, $1, $2); }
+        | direct_abstract_declarator                            { $$ = newNode("abstract-declarator", 1, $1); }
         ;
 
 direct_abstract_declarator: 
-          '(' abstract_declarator ')'
+          '(' abstract_declarator ')'                           { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
         | direct_abstract_declarator '[' assignment_expression ']'
-        | '[' assignment_expression ']'
-        | direct_abstract_declarator '[' ']'
-        | '[' ']'
+                                                                { $$ = newNode("direct-abstract-declarator", 4, $1, $2, $3, $4); }
+        | '[' assignment_expression ']'                         { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
+        | direct_abstract_declarator '[' ']'                    { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
+        | '[' ']'                                               { $$ = newNode("direct-abstract-declarator", 2, $1, $2); }
         | direct_abstract_declarator '(' parameter_type_list ')'
-        | '(' parameter_type_list ')'
-        | direct_abstract_declarator '(' ')'
-        | '(' ')'
-        | direct_abstract_declarator '[' '*' ']'
-        | '[' '*' ']'
+                                                                { $$ = newNode("direct-abstract-declarator", 4, $1, $2, $4); }
+        | '(' parameter_type_list ')'                           { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
+        | direct_abstract_declarator '(' ')'                    { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
+        | '(' ')'                                               { $$ = newNode("direct-abstract-declarator", 2, $1, $2); }
+        | direct_abstract_declarator '[' '*' ']'                { $$ = newNode("direct-abstract-declarator", 4, $1, $2, $3, $4); }
+        | '[' '*' ']'                                           { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
         ;
 
 typedef_name: 
-        IDENTIFIER
+        IDENTIFIER                                              { $$ = newNode("typedef-name", 1, $1); }
         ;
 
 initializer: 
-          assignment_expression
-        | '{' initializer_list '}'
-        | '{' initializer_list ',' '}'
+          assignment_expression                                 { $$ = newNode("initializer", 1, $1); }
+        | '{' initializer_list '}'                              { $$ = newNode("initializer", 3, $1, $2, $3); }
+        | '{' initializer_list ',' '}'                          { $$ = newNode("initializer", 4, $1, $2, $3, $4); }
         ;
 
 initializer_list: 
-          designation initializer
-        | initializer
-        | initializer_list ',' designation initializer
-        | initializer_list ',' initializer
+          designation initializer                               { $$ = newNode("initializer-list", 1, $1); }
+        | initializer                                           { $$ = newNode("initializer-list", 1, $1); }
+        | initializer_list ',' designation initializer          { $$ = newNode("initializer-list", 4, $1, $2, $3, $4); }
+        | initializer_list ',' initializer                      { $$ = newNode("initializer-list", 3, $1, $2, $3); }
         ;
 
 designation:
-        designator_list '='
+        designator_list '='                                     { $$ = newNode("designation", 2, $1, $2); }
         ;
 
 designator_list: 
-          designator
-        | designator_list designator
+          designator                                            { $$ = newNode("designator-list", 1, $1); }
+        | designator_list designator                            { $$ = newNode("designator-list", 2, $1, $2); }
         ;
 
 designator:
-          '[' constant_expression ']'
-        | '.' IDENTIFIER
+          '[' constant_expression ']'                           { $$ = newNode("designator", 3, $1, $2, $3); }
+        | '.' IDENTIFIER                                        { $$ = newNode("designator", 2, $1, $2); }
         ;
 
 /* STATEMENTS */
 
 statement: 
-          labeled_statement
-        | compound_statement
-        | expression_statement
-        | selection_statement
-        | iteration_statement
-        | jump_statement
+          labeled_statement                                     { $$ = newNode("statement", 1, $1); }
+        | compound_statement                                    { $$ = newNode("statement", 1, $1); }
+        | expression_statement                                  { $$ = newNode("statement", 1, $1); }
+        | selection_statement                                   { $$ = newNode("statement", 1, $1); }
+        | iteration_statement                                   { $$ = newNode("statement", 1, $1); }
+        | jump_statement                                        { $$ = newNode("statement", 1, $1); }
         ;
 
 labeled_statement: 
-        IDENTIFIER ':' statement
-        | CASE constant_expression ':' statement
-        | DEFAULT ':' statement
+          IDENTIFIER ':' statement                              { $$ = newNode("labeled-statement", 3, $1, $2, $3); }
+        | CASE constant_expression ':' statement                { $$ = newNode("labeled-statement", 4, $1, $2, $3, $4); }
+        | DEFAULT ':' statement                                 { $$ = newNode("labeled-statement", 3, $1, $2, $3); }
         ;
 
 compound_statement: 
-          '{' block_item_list '}'
-        | '{' '}'
+          '{' block_item_list '}'                               { $$ = newNode("compound-statement", 3, $1, $2, $3); }
+        | '{' '}'                                               { $$ = newNode("compound-statement", 2, $1, $2); }
         ;
 
 block_item_list:
-          block_item
-        | block_item_list block_item
+          block_item                                            { $$ = newNode("block-item-list", 1, $1); }
+        | block_item_list block_item                            { $$ = newNode("block-item-list", 2, $1, $2); }
         ;
 
 block_item: 
-          declaration
-        | statement
+          declaration                                           { $$ = newNode("block-item", 1, $1); }
+        | statement                                             { $$ = newNode("block-item", 1, $1); }
         ;
 
 expression_statement: 
-          ';'
-        | expression ';'
+          ';'                                                   { $$ = newNode("expression-statement", 1, $1); }
+        | expression ';'                                        { $$ = newNode("expression-statement", 2, $1, $2); }
         ;
 
 selection_statement: 
-          IF '(' expression ')' statement
-        | IF '(' expression ')' statement ELSE statement
-        | SWITCH '(' expression ')' statement
+          IF '(' expression ')' statement                       { $$ = newNode("selection-statement", 5, $1, $2, $3, $4, $5); }
+        | IF '(' expression ')' statement ELSE statement        { $$ = newNode("selection-statement", 7, $1, $2, $3, $4, $5, $6, $7); }
+        | SWITCH '(' expression ')' statement                   { $$ = newNode("selection-statement", 5, $1, $2, $3, $4, $5); }
         ;
 
 iteration_statement: 
           WHILE '(' expression ')' statement
+                                                { $$ = newNode("iteration-statement", 5, $1, $2, $3, $4, $5); }
         | DO statement WHILE '(' expression ')' ';'
+                                                { $$ = newNode("iteration-statement", 7, $1, $2, $3, $4, $5, $6, $7); }
         | FOR '(' expression ';' expression ';' expression ')' statement
+                                                { $$ = newNode("iteration-statement", 9, $1, $2, $3, $4, $5, $6, $7, $8, $9); }
         | FOR '(' expression ';' expression ';' ')' statement
+                                                { $$ = newNode("iteration-statement", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
         | FOR '(' expression ';' ';' expression ')' statement
+                                                { $$ = newNode("iteration-statement", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
         | FOR '(' ';' expression ';' expression ')' statement
+                                                { $$ = newNode("iteration-statement", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
         | FOR '(' expression ';' ';' ')' statement
+                                                { $$ = newNode("iteration-statement", 7, $1, $2, $3, $4, $5, $6, $7); }
         | FOR '(' ';' ';' expression ')' statement
+                                                { $$ = newNode("iteration-statement", 7, $1, $2, $3, $4, $5, $6, $7); }
         | FOR '(' ';' expression ';' ')' statement
+                                                { $$ = newNode("iteration-statement", 7, $1, $2, $3, $4, $5, $6, $7); }
         | FOR '(' ';' ';' ')' statement
+                                                { $$ = newNode("iteration-statement", 6, $1, $2, $3, $4, $5, $6); }
         | FOR '(' declaration expression ';' expression ')' statement
+                                                { $$ = newNode("iteration-statement", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
         | FOR '(' declaration expression ';' ')' statement
+                                                { $$ = newNode("iteration-statement", 7, $1, $2, $3, $4, $5, $6, $7); }
         | FOR '(' declaration ';' expression ')' statement
+                                                { $$ = newNode("iteration-statement", 7, $1, $2, $3, $4, $5, $6, $7); }
         | FOR '(' declaration ';' ')' statement
+                                                { $$ = newNode("iteration-statement", 6, $1, $2, $3, $4, $5, $6); }
         ;
 
 jump_statement: 
-          GOTO IDENTIFIER ';'
-        | CONTINUE ';'
-        | BREAK ';'
-        | RETURN expression ';'
-        | RETURN ';'
+          GOTO IDENTIFIER ';'                                   { $$ = newNode("jump-statement", 3, $1, $2, $3); }
+        | CONTINUE ';'                                          { $$ = newNode("jump-statement", 2, $1, $2); }
+        | BREAK ';'                                             { $$ = newNode("jump-statement", 2, $1, $2); }
+        | RETURN expression ';'                                 { $$ = newNode("jump-statement", 3, $1, $2, $3); }
+        | RETURN ';'                                            { $$ = newNode("jump-statement", 2, $1, $2); }
         ;
 
 /* EXTERNAL DEFINITIONS */
 
 translation_unit: 
-          external_declaration
-        | translation_unit external_declaration
+          external_declaration                                  { $$ = newNode("translation-unit", 1, $1); }
+        | translation_unit external_declaration                 { $$ = newNode("translation-unit", 2, $1, $2); }
         ;
 
 external_declaration: 
-          function_definition 
-        | declaration
+          function_definition                                   { $$ = newNode("external-declaration", 1, $1); }
+        | declaration                                           { $$ = newNode("external-declaration", 1, $1); }
         ;
 
 function_definition: 
-          declaration_specifiers declarator declaration_list compound_statement 
+          declaration_specifiers declarator declaration_list compound_statement
+                                                                { $$ = newNode("function-definition", 4, $1, $2, $3, $4); }
         ;
 
 declaration_list:
-        | declaration_list declaration
+                                                                { $$ = newNode("declaration-list", 0); }
+        | declaration_list declaration                          { $$ = newNode("declaration-list", 2, $1, $2); }
         ;
 
 /* PREPROCESSING DIRECTIVES */
 
-preprocessing: 
-        | group
-        ;
-
-group: 
-          group_part
-        | group group_part
-        ;
-
-group_part: 
-          if_section
-        | control_line
-        | text_line
-        | '#' non_directive
-        ;
-
-if_section: 
-        if_group elif_groups else_group endif_line 
-        if_group elif_groups endif_line 
-        if_group else_group endif_line 
-        if_group endif_line 
-        ;
-
-if_group: 
-          '#' IF constant_expression NEW_LINE group
-        | '#' IFDEF IDENTIFIER NEW_LINE group
-        | '#' IFNDEF IDENTIFIER NEW_LINE group
-        ;
-
-elif_groups: 
-          elif_group
-        | elif_groups elif_group
-        ;
-
-elif_group: 
-        '#' ELIF constant_expression NEW_LINE group
-        ;
-
-else_group: 
-        '#' ELSE NEW_LINE group 
-        ;
-
-endif_line: 
-        '#' ENDIF NEW_LINE 
-        ;
-
-control_line: 
-          '#' INCLUDE pp_tokens NEW_LINE
-        | '#' DEFINE IDENTIFIER replacement_list NEW_LINE
-        | '#' DEFINE IDENTIFIER '(' identifier_list ')' replacement_list NEW_LINE
-        | '#' DEFINE IDENTIFIER '(' ')' replacement_list NEW_LINE
-        | '#' DEFINE IDENTIFIER '(' ELLIPSIS ')' replacement_list NEW_LINE
-        | '#' DEFINE IDENTIFIER '(' identifier_list ',' ELLIPSIS ')' replacement_list NEW_LINE
-        | '#' UNDEF IDENTIFIER NEW_LINE
-        | '#' LINE pp_tokens NEW_LINE
-        | '#' ERROR pp_tokens NEW_LINE
-        | '#' ERROR NEW_LINE
-        | '#' PRAGMA pp_tokens NEW_LINE
-        | '#' PRAGMA NEW_LINE
-        | '#' NEW_LINE
-        ;
-
-text_line: 
-          pp_tokens NEW_LINE 
-        | NEW_LINE 
-        ;
-
-non_directive: 
-        pp_tokens NEW_LINE 
-        ;
-
-replacement_list: 
-        | pp_tokens 
-        ;
-
-pp_tokens: 
-          preprocessing_token
-        | pp_tokens preprocessing_token
-        ;
-
-preprocessing_token: 
-          HSEQ 
-        | IDENTIFIER 
-        | CHAR_CONST 
-        | STRING
-        | punctuator
-        | INT_CONST
-        ;
-
-punctuator: 
-          '[' | ']' | '(' | ')' | '{' | '}' | '.' | ARROW
-        | INC_OP | DEC_OP | '&' | '*' | '+' | '-' | '~' | '!'
-        | '/' | '%' | LEFT_SHIFT | RIGHT_SHIFT | '^' | '|' | AND_OP | OR_OP
-        | '<' | '>' | LE_OP | GE_OP | EQ_OP | NE_OP
-        | '?' | ':' | ';' | ELLIPSIS 
-        | '=' | MULT_EQ | DIV_EQ | MOD_EQ | ADD_EQ | SUB_EQ 
-        | LEFT_EQ | RIGHT_EQ | AND_EQ | XOR_EQ | OR_EQ 
-        | ',' | '#'
-        ;
 %%
 
 void yyerror(char* s) {
@@ -601,6 +546,8 @@ void yyerror(char* s) {
 
 int main() {
     yyparse();
-    if (success) printf("Parsed successfully!\n");
+    if (!success) return 0;
+    printf("Parsed successfully!\nAST:");
+    printAST("", head, 1);
     return 0;
 }

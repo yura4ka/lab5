@@ -6,7 +6,7 @@ typedef struct Node Node;
 typedef struct {
   int _cap;
   int size;
-  Node *arr;
+  Node **arr;
 } NodeArray;
 
 struct Node {
@@ -14,8 +14,14 @@ struct Node {
   NodeArray children;
 };
 
+Node *newNode(const char *value, const int childCount, ...);
+
+Node *newNodeLeaf(const char *parent, const char *value);
+
 void makeArray(NodeArray *arr, int cap);
 
-void push(NodeArray *arr, Node node);
+void push(NodeArray *arr, Node *node);
+
+void printAST(const char *prefix, const Node *node, const int isLast);
 
 #endif
