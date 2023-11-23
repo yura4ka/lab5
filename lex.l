@@ -30,6 +30,15 @@ HEX_DIGIT [0-9a-fA-F]
 "sizeof" { yylval.node = newNode(yytext, 0); return SIZEOF; }
 "enum" { yylval.node = newNode(yytext, 0); return ENUM; }
 "inline" { yylval.node = newNode(yytext, 0); return INLINE; }
+"ifdef" { yylval.node = newNode(yytext, 0); return IFDEF; }
+"ifndef" { yylval.node = newNode(yytext, 0); return IFNDEF; }
+"elif" { yylval.node = newNode(yytext, 0); return ELIF; }
+"endif" { yylval.node = newNode(yytext, 0); return ENDIF; }
+"include" { yylval.node = newNode(yytext, 0); return INCLUDE; }
+"define" { yylval.node = newNode(yytext, 0); return DEFINE; }
+"line" { yylval.node = newNode(yytext, 0); return LINE; }
+"error" { yylval.node = newNode(yytext, 0); return ERROR; }
+"pragma" { yylval.node = newNode(yytext, 0); return PRAGMA; }
 "#"|"{"|"}"|"("|")"|"["|"]"|";"|","|"+"|"-"|"*"|"/"|"%"|"<"|">"|"&"|"^"|"|"|"!"|"~"|"?"|":"|"."|"=" { yylval.node = newNode(yytext, 0); return *yytext; }
 "++" { yylval.node = newNode(yytext, 0); return INC_OP; }
 "--" { yylval.node = newNode(yytext, 0); return DEC_OP; }
@@ -54,6 +63,7 @@ HEX_DIGIT [0-9a-fA-F]
 "^=" { yylval.node = newNode(yytext, 0); return XOR_EQ; }
 "|=" { yylval.node = newNode(yytext, 0); return OR_EQ; }
 
+"<"[^>\n]+">" { yylval.node = newNode(yytext, 0); return HSEQ; }
 [a-zA-Z_]+[a-zA-Z0-9_]* { yylval.node = newNodeLeaf("identifier", yytext); return IDENTIFIER; }
 (((({DIGIT}*\.{DIGIT}+|{DIGIT}+\.)([eE]([+-]?{DIGIT}+)?)?)|([1-9]{DIGIT}*[eE][+-]?\d+))([fFlL]?))|(0[xX]((({HEX_DIGIT}*\.{HEX_DIGIT}+|{HEX_DIGIT}+\.)|({HEX_DIGIT}+))[pP][+-]?{DIGIT}+[flFL]?)) { yylval.node = newNodeLeaf("float-constant", yytext); return FLOAT_CONST; }
 ((0[xX]{HEX_DIGIT}+)|([1-9]{DIGIT}*)|(0[0-7]*))([uU](ll|LL)|(ll|LL)[uU]?|[uU][lL]?|[lL][uU]?)? { yylval.node = newNodeLeaf("int-constant", yytext); return INT_CONST; }

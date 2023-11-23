@@ -18,6 +18,7 @@ Node* head;
 %token <node> IDENTIFIER
 %token <node> INT_CONST CHAR_CONST FLOAT_CONST STRING
 
+%token <node> IFDEF IFNDEF ELIF ENDIF INCLUDE DEFINE UNDEF LINE ERROR PRAGMA HSEQ 
 %token <node> RETURN IF ELSE WHILE FOR SWITCH CASE DEFAULT BREAK CONTINUE GOTO ENUM DO INLINE
 %token <node> ELLIPSIS
 %token <node> '[' ']' '(' ')' '{' '}' '#' ';'
@@ -58,10 +59,13 @@ Node* head;
 %type <node> designation designator_list designator statement labeled_statement compound_statement block_item_list block_item
 %type <node> expression_statement selection_statement iteration_statement jump_statement translation_unit external_declaration
 %type <node> function_definition declaration_list
+%type <node> preprocessing group group_part if_section if_group elif_groups elif_group
+%type <node> else_group endif_line control_line replacement_list pp_tokens preprocessing_token punctuator
 
 %%
 program: 
-        translation_unit                        { $$ = newNode("program", 1, $1); head = $$; }
+          translation_unit                      { $$ = newNode("program", 1, $1); head = $$; }
+        | preprocessing translation_unit        { $$ = newNode("program", 2, $1, $2); head = $$; }
         ;
 
 constant: 
@@ -535,6 +539,101 @@ declaration_list:
         ;
 
 /* PREPROCESSING DIRECTIVES */
+
+preprocessing: 
+        group                                                   { $$ = newNode("preprocessing", 1, $1); }
+        ;
+
+group: 
+          group_part                                            { $$ = newNode("group", 1, $1); }
+        | group group_part                                      { $$ = newNode("group", 2, $1, $2); }
+        ;
+
+group_part: 
+          if_section                                            { $$ = newNode("group-part", 1, $1); }
+        | control_line                                          { $$ = newNode("group-part", 1, $1); }
+        | pp_tokens                                             { $$ = newNode("group-part", 1, $1); }
+        | '#' pp_tokens                                         { $$ = newNode("group-part", 2, $1, $2); }
+        ;
+
+if_section: 
+          if_group elif_groups else_group endif_line            { $$ = newNode("if-section", 4, $1, $2, $3, $4); }
+        | if_group elif_groups endif_line                       { $$ = newNode("if-section", 3, $1, $2, $3); }
+        | if_group else_group endif_line                        { $$ = newNode("if-section", 3, $1, $2, $3); }
+        | if_group endif_line                                   { $$ = newNode("if-section", 2, $1, $2); }
+        ;
+
+if_group: 
+          '#' IF constant_expression group                      { $$ = newNode("if-group", 4, $1, $2, $3, $4); }
+        | '#' IFDEF IDENTIFIER group                            { $$ = newNode("if-group", 4, $1, $2, $3, $4); }
+        | '#' IFNDEF IDENTIFIER group                           { $$ = newNode("if-group", 4, $1, $2, $3, $4); }
+        ;
+
+elif_groups: 
+          elif_group                                            { $$ = newNode("elif-groups", 1, $1); }
+        | elif_groups elif_group                                { $$ = newNode("elif-groups", 2, $1, $2); }
+        ;
+
+elif_group: 
+        '#' ELIF constant_expression group                      { $$ = newNode("elif-group", 4, $1, $2, $3, $4); }
+        ;
+
+else_group: 
+        '#' ELSE group                                          { $$ = newNode("else-group", 3, $1, $2, $3); }
+        ;
+
+endif_line: 
+        '#' ENDIF                                               { $$ = newNode("endif-group", 2, $1, $2); }
+        ;
+
+control_line: 
+          '#' INCLUDE pp_tokens                                 { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' DEFINE IDENTIFIER replacement_list                { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
+        | '#' DEFINE IDENTIFIER '(' identifier_list ')' replacement_list 
+                                                                { $$ = newNode("control-line", 7, $1, $2, $3, $4, $5, $6, $7); }
+        | '#' DEFINE IDENTIFIER '(' ')' replacement_list        { $$ = newNode("control-line", 6, $1, $2, $3, $4, $5, $6); }
+        | '#' DEFINE IDENTIFIER '(' ELLIPSIS ')' replacement_list 
+                                                                { $$ = newNode("control-line", 7, $1, $2, $3, $4, $5, $6, $7); }
+        | '#' DEFINE IDENTIFIER '(' identifier_list ',' ELLIPSIS ')' replacement_list 
+                                                                { $$ = newNode("control-line", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
+        | '#' UNDEF IDENTIFIER                                  { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' LINE pp_tokens                                    { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' ERROR pp_tokens                                   { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' ERROR                                             { $$ = newNode("control-line", 2, $1, $2); }
+        | '#' PRAGMA pp_tokens                                  { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' PRAGMA                                            { $$ = newNode("control-line", 2, $1, $2); }
+        | '#'                                                   { $$ = newNode("control-line", 1, $1); }
+        ;
+
+replacement_list: 
+                                                                { $$ = newNode("replacement-list", 0); }
+        | pp_tokens                                             { $$ = newNode("replacement-list", 1, $1); }
+        ;
+
+pp_tokens: 
+          preprocessing_token                                   { $$ = newNode("pp-tokens", 1, $1); }
+        | pp_tokens preprocessing_token                         { $$ = newNode("pp-tokens", 1, $1); }
+        ;
+
+preprocessing_token: 
+          HSEQ                                                  { $$ = newNode("preprocessing-token", 1, $1); }
+        | IDENTIFIER                                            { $$ = newNode("preprocessing-token", 1, $1); }
+        | CHAR_CONST                                            { $$ = newNode("preprocessing-token", 1, $1); }
+        | STRING                                                { $$ = newNode("preprocessing-token", 1, $1); }
+        | punctuator                                            { $$ = newNode("preprocessing-token", 1, $1); }
+        | INT_CONST                                             { $$ = newNode("preprocessing-token", 1, $1); }
+        ;
+
+punctuator: 
+          '[' | ']' | '(' | ')' | '{' | '}' | '.' | ARROW
+        | INC_OP | DEC_OP | '&' | '*' | '+' | '-' | '~' | '!'
+        | '/' | '%' | LEFT_SHIFT | RIGHT_SHIFT | '^' | '|' | AND_OP | OR_OP
+        | '<' | '>' | LE_OP | GE_OP | EQ_OP | NE_OP
+        | '?' | ':' | ';' | ELLIPSIS 
+        | '=' | MULT_EQ | DIV_EQ | MOD_EQ | ADD_EQ | SUB_EQ 
+        | LEFT_EQ | RIGHT_EQ | AND_EQ | XOR_EQ | OR_EQ 
+        | ',' | '#'
+        ;
 
 %%
 
