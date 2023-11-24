@@ -4,6 +4,8 @@
 #include <stdio.h>
 %}
 
+%option yylineno
+
 DIGIT [0-9]
 HEX_DIGIT [0-9a-fA-F]
 

@@ -2,11 +2,13 @@
 #include <stdio.h>
 #include "lib.h"
 
-void yyerror(char *s);
+void yyerror(const char *s);
 int success = 1;
 
 Node* head;
 %}
+
+%define parse.error detailed
 
 %union {
     Node *node;
@@ -636,7 +638,7 @@ punctuator:
 
 %%
 
-void yyerror(char* s) {
+void yyerror(const char* s) {
     extern int yylineno;
     fprintf(stderr, "line %d: %s\n", yylineno, s);
     success = 0;
