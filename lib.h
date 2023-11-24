@@ -22,6 +22,6 @@ void makeArray(NodeArray *arr, int cap);
 
 void push(NodeArray *arr, Node *node);
 
-void printAST(const char *prefix, const Node *node, const int isLast);
+void createTreeOutput(Node *head);
 
 #endif

@@ -3,7 +3,6 @@
 #include "lib.h"
 
 void yyerror(char *s);
-int yydebug = 1;
 int success = 1;
 
 Node* head;
@@ -646,7 +645,7 @@ void yyerror(char* s) {
 int main() {
     yyparse();
     if (!success) return 0;
-    printf("Parsed successfully!\nAST:");
-    printAST("", head, 1);
+    printf("Parsed successfully!\nCreating AST...\n");
+    createTreeOutput(head);
     return 0;
 }
