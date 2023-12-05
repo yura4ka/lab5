@@ -68,7 +68,7 @@ HEX_DIGIT [0-9a-fA-F]
 "^=" { yylval.node = newNode(yytext, 0); return XOR_EQ; }
 "|=" { yylval.node = newNode(yytext, 0); return OR_EQ; }
 
-"\n" { if (isControlLine) { isControlLine = 0; yylval.node = newNode(yytext, 0); return NEW_LINE;} }
+"\n" { if (isControlLine) { isControlLine = 0; yylval.node = newNode("NEW_LINE", 0); return NEW_LINE;} }
 "<"[^>\n]+">" { yylval.node = newNode(yytext, 0); return HSEQ; }
 [a-zA-Z_]+[a-zA-Z0-9_]* { yylval.node = newNodeLeaf("identifier", yytext); return IDENTIFIER; }
 (((({DIGIT}*\.{DIGIT}+|{DIGIT}+\.)([eE]([+-]?{DIGIT}+)?)?)|([1-9]{DIGIT}*[eE][+-]?\d+))([fFlL]?))|(0[xX]((({HEX_DIGIT}*\.{HEX_DIGIT}+|{HEX_DIGIT}+\.)|({HEX_DIGIT}+))[pP][+-]?{DIGIT}+[flFL]?)) { yylval.node = newNodeLeaf("float-constant", yytext); return FLOAT_CONST; }

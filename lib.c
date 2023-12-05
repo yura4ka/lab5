@@ -54,7 +54,7 @@ void treeToFile(FILE *file, Node *node) {
     return;
   }
 
-  fprintf(file, "{ value: '%s', children: [", node->value);
+  fprintf(file, "{ value: String.raw`%s`, children: [", node->value);
 
   for (int i = 0; i < node->children.size; ++i) {
     treeToFile(file, node->children.arr[i]);
