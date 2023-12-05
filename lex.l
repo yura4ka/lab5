@@ -2,6 +2,8 @@
 #include "lib.h"
 #include "y.tab.h"
 #include <stdio.h>
+
+int isControlLine = 0;
 %}
 
 %option yylineno
@@ -41,7 +43,8 @@ HEX_DIGIT [0-9a-fA-F]
 "line" { yylval.node = newNode(yytext, 0); return LINE; }
 "error" { yylval.node = newNode(yytext, 0); return ERROR; }
 "pragma" { yylval.node = newNode(yytext, 0); return PRAGMA; }
-"#"|"{"|"}"|"("|")"|"["|"]"|";"|","|"+"|"-"|"*"|"/"|"%"|"<"|">"|"&"|"^"|"|"|"!"|"~"|"?"|":"|"."|"=" { yylval.node = newNode(yytext, 0); return *yytext; }
+"#" { isControlLine = 1; yylval.node = newNode(yytext, 0); return *yytext; }
+"{"|"}"|"("|")"|"["|"]"|";"|","|"+"|"-"|"*"|"/"|"%"|"<"|">"|"&"|"^"|"|"|"!"|"~"|"?"|":"|"."|"=" { yylval.node = newNode(yytext, 0); return *yytext; }
 "++" { yylval.node = newNode(yytext, 0); return INC_OP; }
 "--" { yylval.node = newNode(yytext, 0); return DEC_OP; }
 "==" { yylval.node = newNode(yytext, 0); return EQ_OP; }
@@ -65,13 +68,14 @@ HEX_DIGIT [0-9a-fA-F]
 "^=" { yylval.node = newNode(yytext, 0); return XOR_EQ; }
 "|=" { yylval.node = newNode(yytext, 0); return OR_EQ; }
 
+"\n" { if (isControlLine) { isControlLine = 0; yylval.node = newNode(yytext, 0); return NEW_LINE;} }
 "<"[^>\n]+">" { yylval.node = newNode(yytext, 0); return HSEQ; }
 [a-zA-Z_]+[a-zA-Z0-9_]* { yylval.node = newNodeLeaf("identifier", yytext); return IDENTIFIER; }
 (((({DIGIT}*\.{DIGIT}+|{DIGIT}+\.)([eE]([+-]?{DIGIT}+)?)?)|([1-9]{DIGIT}*[eE][+-]?\d+))([fFlL]?))|(0[xX]((({HEX_DIGIT}*\.{HEX_DIGIT}+|{HEX_DIGIT}+\.)|({HEX_DIGIT}+))[pP][+-]?{DIGIT}+[flFL]?)) { yylval.node = newNodeLeaf("float-constant", yytext); return FLOAT_CONST; }
 ((0[xX]{HEX_DIGIT}+)|([1-9]{DIGIT}*)|(0[0-7]*))([uU](ll|LL)|(ll|LL)[uU]?|[uU][lL]?|[lL][uU]?)? { yylval.node = newNodeLeaf("int-constant", yytext); return INT_CONST; }
 \'([^'\\]|\\['"?\\abfnrtv])\' { yylval.node = newNodeLeaf("char-constant", yytext); return CHAR_CONST; }
 \"([^"\\]|\\['"?\\abfnrtv])*\" { yylval.node = newNodeLeaf("string-literal", yytext); return STRING; }
-[ \t\n] ;
+[ \t] ;
 %%
 
 int yywrap(void) {

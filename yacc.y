@@ -4,7 +4,7 @@
 
 void yyerror(const char *s);
 int success = 1;
-
+int yydebug = 1;
 Node* head;
 %}
 
@@ -18,6 +18,7 @@ Node* head;
 %token <node> TYPE_SPECIFIER TYPE_QUALIFIER STRUCT_OR_UNION
 %token <node> IDENTIFIER
 %token <node> INT_CONST CHAR_CONST FLOAT_CONST STRING
+%token <node> NEW_LINE
 
 %token <node> IFDEF IFNDEF ELIF ENDIF INCLUDE DEFINE UNDEF LINE ERROR PRAGMA HSEQ 
 %token <node> RETURN IF ELSE WHILE FOR SWITCH CASE DEFAULT BREAK CONTINUE GOTO ENUM DO INLINE
@@ -42,12 +43,16 @@ Node* head;
 %left <node> '+' '-'
 %left <node> '*' '/' '%'
 %right <node> SIZEOF
+%right <node> ADDR_OF
+%right <node> DEREFERENCE
+%precedence <node> CAST
 %right <node> '!' '~'
+%right <node> UNARY
 %right <node> INC_OP DEC_OP
 %left <node> ARROW
 %left <node> '.'
 
-%type <node> program constant enum_const primary_expression postfix_expression argument_expression_list 
+%type <node> program constant primary_expression postfix_expression argument_expression_list 
 %type <node> unary_expression unary_operator cast_expression multiplicative_expression additive_expression 
 %type <node> shift_expression relational_expression equality_expression and_expression exclusive_or_expression 
 %type <node> inclusive_or_expression logical_and_expression logical_or_expression conditional_expression
@@ -65,28 +70,23 @@ Node* head;
 
 %%
 program: 
-          translation_unit                      { $$ = newNode("program", 1, $1); head = $$; }
-        | preprocessing translation_unit        { $$ = newNode("program", 2, $1, $2); head = $$; }
+          translation_unit                                      { $$ = newNode("program", 1, $1); head = $$; }
+        | preprocessing translation_unit                        { $$ = newNode("program", 2, $1, $2); head = $$; }
         ;
 
 constant: 
-          INT_CONST                             { $$ = newNode("constant", 1, $1); }
-        | CHAR_CONST                            { $$ = newNode("constant", 1, $1); }
-        | FLOAT_CONST                           { $$ = newNode("constant", 1, $1); }
-        | enum_const                            { $$ = newNode("constant", 1, $1); }
-        ;
-
-enum_const: 
-        IDENTIFIER                              { $$ = newNode("enumeration-constant", 1, $1); }
+          INT_CONST                                             { $$ = newNode("constant", 1, $1); }
+        | CHAR_CONST                                            { $$ = newNode("constant", 1, $1); }
+        | FLOAT_CONST                                           { $$ = newNode("constant", 1, $1); }
         ;
 
 /* EXPRESSIONS */
 
 primary_expression: 
-          IDENTIFIER                            { $$ = newNode("primary-expression", 1, $1); }
-        | constant                              { $$ = newNode("primary-expression", 1, $1); }
-        | STRING                                { $$ = newNode("primary-expression", 1, $1); }
-        | '(' expression ')'                    { $$ = newNode("primary-expression", 3, $1, $2, $3); }
+          IDENTIFIER                                            { $$ = newNode("primary-expression", 1, $1); }
+        | constant                                              { $$ = newNode("primary-expression", 1, $1); }
+        | STRING                                                { $$ = newNode("primary-expression", 1, $1); }
+        | '(' expression ')'                                    { $$ = newNode("primary-expression", 3, $1, $2, $3); }
         ;
 
 postfix_expression: 
@@ -108,21 +108,27 @@ argument_expression_list:
         ;
 
 unary_expression: 
-          postfix_expression                    { $$ = newNode("unary-expression", 1, $1); }
-        | INC_OP unary_expression               { $$ = newNode("unary-expression", 2, $1, $2); }
-        | DEC_OP unary_expression               { $$ = newNode("unary-expression", 2, $1, $2); }
-        | unary_operator cast_expression        { $$ = newNode("unary-expression", 2, $1, $2); }
-        | SIZEOF unary_expression               { $$ = newNode("unary-expression", 2, $1, $2); }
-        | SIZEOF '(' type_name ')'              { $$ = newNode("unary-expression", 4, $1, $2, $3, $4); }
+          postfix_expression                                    { $$ = newNode("unary-expression", 1, $1); }
+        | INC_OP unary_expression                               { $$ = newNode("unary-expression", 2, $1, $2); }
+        | DEC_OP unary_expression                               { $$ = newNode("unary-expression", 2, $1, $2); }
+        | unary_operator cast_expression                        { $$ = newNode("unary-expression", 2, $1, $2); }
+        | SIZEOF unary_expression                               { $$ = newNode("unary-expression", 2, $1, $2); }
+        | SIZEOF '(' type_name ')'                              { $$ = newNode("unary-expression", 4, $1, $2, $3, $4); }
         ;
 
 unary_operator: 
-        '&' | '*' | '+' | '-' | '~' | '!'
+          '&' %prec ADDR_OF
+        | '*' %prec DEREFERENCE
+        | '+' %prec UNARY 
+        | '-' %prec UNARY
+        | '~' 
+        | '!'
         ;
 
 cast_expression: 
-          unary_expression                      { $$ = newNode("case-expression", 1, $1); }
-        | '(' type_name ')' cast_expression     { $$ = newNode("case-expression", 4, $1, $2, $3, $4); }
+          unary_expression                                      { $$ = newNode("cast-expression", 1, $1); }
+        | '(' type_name ')' cast_expression %prec CAST          { $$ = newNode("cast-expression", 4, $1, $2, $3, $4); }
+        | '(' typedef_name ')' cast_expression %prec CAST       { $$ = newNode("cast-expression", 4, $1, $2, $3, $4); }
         ;
 
 multiplicative_expression: 
@@ -274,7 +280,8 @@ struct_declaration_list:
         ;
 
 struct_declaration: 
-        specifier_qualifier_list struct_declarator_list ';'     { $$ = newNode("struct-declaration", 3, $1, $2, $3); }
+          specifier_qualifier_list struct_declarator_list ';'   { $$ = newNode("struct-declaration", 3, $1, $2, $3); }
+        | specifier_qualifier_list ';'                          { $$ = newNode("struct-declaration", 2, $1, $2); }
         ;
 
 specifier_qualifier_list: 
@@ -309,8 +316,8 @@ enumerator_list:
         ;
 
 enumerator: 
-          enum_const                                            { $$ = newNode("enumerator", 1, $1); }
-        | enum_const '=' constant_expression                    { $$ = newNode("enumerator", 3, $1, $2, $3); }
+          IDENTIFIER                                            { $$ = newNode("enumerator", 1, $1); }
+        | IDENTIFIER '=' constant_expression                    { $$ = newNode("enumerator", 3, $1, $2, $3); }
         ;
 
 function_specifier: 
@@ -553,7 +560,6 @@ group:
 group_part: 
           if_section                                            { $$ = newNode("group-part", 1, $1); }
         | control_line                                          { $$ = newNode("group-part", 1, $1); }
-        | pp_tokens                                             { $$ = newNode("group-part", 1, $1); }
         | '#' pp_tokens                                         { $$ = newNode("group-part", 2, $1, $2); }
         ;
 
@@ -588,22 +594,23 @@ endif_line:
         ;
 
 control_line: 
-          '#' INCLUDE pp_tokens                                 { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' DEFINE IDENTIFIER replacement_list                { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
-        | '#' DEFINE IDENTIFIER '(' identifier_list ')' replacement_list 
+          '#' INCLUDE pp_tokens NEW_LINE                        { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' DEFINE IDENTIFIER replacement_list NEW_LINE       { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
+        | '#' DEFINE IDENTIFIER '(' identifier_list ')' replacement_list NEW_LINE
                                                                 { $$ = newNode("control-line", 7, $1, $2, $3, $4, $5, $6, $7); }
-        | '#' DEFINE IDENTIFIER '(' ')' replacement_list        { $$ = newNode("control-line", 6, $1, $2, $3, $4, $5, $6); }
-        | '#' DEFINE IDENTIFIER '(' ELLIPSIS ')' replacement_list 
+        | '#' DEFINE IDENTIFIER '(' ')' replacement_list NEW_LINE
+                                                                { $$ = newNode("control-line", 6, $1, $2, $3, $4, $5, $6); }
+        | '#' DEFINE IDENTIFIER '(' ELLIPSIS ')' replacement_list NEW_LINE
                                                                 { $$ = newNode("control-line", 7, $1, $2, $3, $4, $5, $6, $7); }
-        | '#' DEFINE IDENTIFIER '(' identifier_list ',' ELLIPSIS ')' replacement_list 
+        | '#' DEFINE IDENTIFIER '(' identifier_list ',' ELLIPSIS ')' replacement_list NEW_LINE
                                                                 { $$ = newNode("control-line", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
-        | '#' UNDEF IDENTIFIER                                  { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' LINE pp_tokens                                    { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' ERROR pp_tokens                                   { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' ERROR                                             { $$ = newNode("control-line", 2, $1, $2); }
-        | '#' PRAGMA pp_tokens                                  { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' PRAGMA                                            { $$ = newNode("control-line", 2, $1, $2); }
-        | '#'                                                   { $$ = newNode("control-line", 1, $1); }
+        | '#' UNDEF IDENTIFIER NEW_LINE                         { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' LINE pp_tokens NEW_LINE                           { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' ERROR pp_tokens NEW_LINE                          { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' ERROR NEW_LINE                                    { $$ = newNode("control-line", 2, $1, $2); }
+        | '#' PRAGMA pp_tokens NEW_LINE                         { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' PRAGMA NEW_LINE                                   { $$ = newNode("control-line", 2, $1, $2); }
+        | '#' NEW_LINE                                          { $$ = newNode("control-line", 1, $1); }
         ;
 
 replacement_list: 
