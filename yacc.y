@@ -4,7 +4,6 @@
 
 void yyerror(const char *s);
 int success = 1;
-int yydebug = 1;
 Node* head;
 %}
 
@@ -292,7 +291,7 @@ specifier_qualifier_list:
         ;
 
 struct_declarator_list: 
-          struct_declarator                                     { $$ = newNode("struct-declarator-list", 3, $1); }
+          struct_declarator                                     { $$ = newNode("struct-declarator-list", 1, $1); }
         | struct_declarator_list ',' struct_declarator          { $$ = newNode("struct-declarator-list", 3, $1, $2, $3); }
         ;
 
@@ -311,7 +310,7 @@ enum_specifier:
         ;
 
 enumerator_list: 
-          enumerator                                            { $$ = newNode("enumerator-list", 1); }
+          enumerator                                            { $$ = newNode("enumerator-list", 1, $1); }
         | enumerator_list ',' enumerator                        { $$ = newNode("enumerator-list", 3, $1, $2, $3); }
         ;
 
@@ -403,7 +402,7 @@ direct_abstract_declarator:
         | direct_abstract_declarator '[' ']'                    { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
         | '[' ']'                                               { $$ = newNode("direct-abstract-declarator", 2, $1, $2); }
         | direct_abstract_declarator '(' parameter_type_list ')'
-                                                                { $$ = newNode("direct-abstract-declarator", 4, $1, $2, $4); }
+                                                                { $$ = newNode("direct-abstract-declarator", 4, $1, $2, $3, $4); }
         | '(' parameter_type_list ')'                           { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
         | direct_abstract_declarator '(' ')'                    { $$ = newNode("direct-abstract-declarator", 3, $1, $2, $3); }
         | '(' ')'                                               { $$ = newNode("direct-abstract-declarator", 2, $1, $2); }
@@ -595,22 +594,22 @@ endif_line:
 
 control_line: 
           '#' INCLUDE pp_tokens NEW_LINE                        { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' DEFINE IDENTIFIER replacement_list NEW_LINE       { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
+        | '#' DEFINE IDENTIFIER replacement_list NEW_LINE       { $$ = newNode("control-line", 5, $1, $2, $3, $4, $5); }
         | '#' DEFINE IDENTIFIER '(' identifier_list ')' replacement_list NEW_LINE
-                                                                { $$ = newNode("control-line", 7, $1, $2, $3, $4, $5, $6, $7); }
-        | '#' DEFINE IDENTIFIER '(' ')' replacement_list NEW_LINE
-                                                                { $$ = newNode("control-line", 6, $1, $2, $3, $4, $5, $6); }
-        | '#' DEFINE IDENTIFIER '(' ELLIPSIS ')' replacement_list NEW_LINE
-                                                                { $$ = newNode("control-line", 7, $1, $2, $3, $4, $5, $6, $7); }
-        | '#' DEFINE IDENTIFIER '(' identifier_list ',' ELLIPSIS ')' replacement_list NEW_LINE
                                                                 { $$ = newNode("control-line", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
-        | '#' UNDEF IDENTIFIER NEW_LINE                         { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' LINE pp_tokens NEW_LINE                           { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' ERROR pp_tokens NEW_LINE                          { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' ERROR NEW_LINE                                    { $$ = newNode("control-line", 2, $1, $2); }
-        | '#' PRAGMA pp_tokens NEW_LINE                         { $$ = newNode("control-line", 3, $1, $2, $3); }
-        | '#' PRAGMA NEW_LINE                                   { $$ = newNode("control-line", 2, $1, $2); }
-        | '#' NEW_LINE                                          { $$ = newNode("control-line", 1, $1); }
+        | '#' DEFINE IDENTIFIER '(' ')' replacement_list NEW_LINE
+                                                                { $$ = newNode("control-line", 7, $1, $2, $3, $4, $5, $6, $7); }
+        | '#' DEFINE IDENTIFIER '(' ELLIPSIS ')' replacement_list NEW_LINE
+                                                                { $$ = newNode("control-line", 8, $1, $2, $3, $4, $5, $6, $7, $8); }
+        | '#' DEFINE IDENTIFIER '(' identifier_list ',' ELLIPSIS ')' replacement_list NEW_LINE
+                                                                { $$ = newNode("control-line", 10, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10); }
+        | '#' UNDEF IDENTIFIER NEW_LINE                         { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
+        | '#' LINE pp_tokens NEW_LINE                           { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
+        | '#' ERROR pp_tokens NEW_LINE                          { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
+        | '#' ERROR NEW_LINE                                    { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' PRAGMA pp_tokens NEW_LINE                         { $$ = newNode("control-line", 4, $1, $2, $3, $4); }
+        | '#' PRAGMA NEW_LINE                                   { $$ = newNode("control-line", 3, $1, $2, $3); }
+        | '#' NEW_LINE                                          { $$ = newNode("control-line", 2, $1, $2); }
         ;
 
 replacement_list: 
